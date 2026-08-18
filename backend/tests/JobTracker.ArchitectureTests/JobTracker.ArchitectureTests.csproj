@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup Label="Every layer under test must be referenced so its assembly loads.">
+    <ProjectReference Include="..\..\src\Common\JobTracker.Common.Domain\JobTracker.Common.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Common\JobTracker.Common.Application\JobTracker.Common.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\JobTracker.Modules.Jobs.Domain\JobTracker.Modules.Jobs.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\JobTracker.Modules.Jobs.Application\JobTracker.Modules.Jobs.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\JobTracker.Modules.Jobs.Infrastructure\JobTracker.Modules.Jobs.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\JobTracker.Modules.Jobs.Presentation\JobTracker.Modules.Jobs.Presentation.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\JobTracker.Modules.Jobs.IntegrationEvents\JobTracker.Modules.Jobs.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Billing\JobTracker.Modules.Billing.Application\JobTracker.Modules.Billing.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="coverlet.collector">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+</Project>
