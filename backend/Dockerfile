@@ -36,6 +36,18 @@ RUN dotnet publish src/JobTracker.Api/JobTracker.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
+# The ASP.NET runtime image is Debian slim: it ships neither curl nor wget, so a
+# HEALTHCHECK written against either exits 127 on every probe and the container
+# is reported unhealthy without a single request ever reaching the application.
+# That is not hypothetical — it is what this image did until CI caught it, and
+# the symptom was silent, because a health probe that never runs logs nothing.
+#
+# curl is installed explicitly so the check below depends on something this
+# Dockerfile guarantees, rather than on what a base image happens to include.
+RUN apt-get update \
+ && apt-get install --yes --no-install-recommends curl \
+ && rm --recursive --force /var/lib/apt/lists/*
+
 # Never run as root.
 RUN adduser --system --uid 1001 --group jobtracker
 COPY --from=build --chown=jobtracker:jobtracker /app/publish .
@@ -45,5 +57,15 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_TieredPGO=1
 EXPOSE 8080
+
+# Declared here rather than in docker-compose.yml so the image knows how to prove
+# it is alive whatever starts it, matching the frontend image. `--fail` is what
+# makes curl exit non-zero on a 5xx; without it a broken app answering with 500
+# reports as healthy.
+#
+# The start period covers applying EF Core migrations on boot, which is the
+# slowest thing this container does before it can serve.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=12 \
+  CMD curl --fail --silent --show-error http://127.0.0.1:8080/health/live || exit 1
 
 ENTRYPOINT ["dotnet", "JobTracker.Api.dll"]

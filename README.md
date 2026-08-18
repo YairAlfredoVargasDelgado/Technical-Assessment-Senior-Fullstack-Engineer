@@ -41,8 +41,8 @@ cd frontend && npm ci && npm run dev
 
 ```bash
 cd backend  && dotnet test                    # 103 tests — domain, handlers, architecture
-cd frontend && npm test                       # 184 tests — runtime + type-level
-cd frontend && npm run test:coverage          # 94.6% lines / 96.8% branches
+cd frontend && npm test                       # 183 runtime tests
+cd frontend && npm run test:coverage          # 94.0% lines / 96.5% branches
 cd frontend && npm run test:e2e               # 11 Playwright specs, incl. accessibility
 ```
 
@@ -184,8 +184,8 @@ Every row below is observed output, not a claim about the code.
 |---|---|
 | Backend | 17 projects, `TreatWarningsAsErrors`, zero warnings |
 | Backend tests | 103 — 60 aggregate/value object, 8 handler (Moq), 35 architecture (NetArchTest) |
-| Frontend tests | 184 — 144 runtime, 40 type-level |
-| Coverage | 94.6% lines, 96.8% branches, 91.7% functions |
+| Frontend tests | 223 — 183 runtime (`npm test`), 40 type-level (`npm run test:types`) |
+| Coverage | 94.0% lines, 96.5% branches, 94.4% functions — over `src`, thresholds at 80 |
 | E2E | 11 Playwright specs against Next + .NET + PostgreSQL, nothing mocked |
 | Multi-tenancy | A token for organisation B returns `items: 0` for organisation A's jobs |
 | Async pipeline | Complete a job → outbox row → Hangfire → integration event → invoice row |
@@ -194,7 +194,7 @@ Every row below is observed output, not a claim about the code.
 | Keyset vs OFFSET | 0.07 ms vs 6.90 ms at depth 2 400 — Index Only Scan vs Bitmap + Sort |
 | Full-text | GIN index used via `BitmapAnd` on selective terms; ordered index preferred on common ones |
 
-Three bugs surfaced only by running the system, and are fixed:
+Four bugs surfaced only by running the system, and are fixed:
 
 1. **API/UI contract mismatch** — the backend returned a flat address, the frontend
    expected a nested one. Fixed in the backend, which had the weaker design.
@@ -204,6 +204,21 @@ Three bugs surfaced only by running the system, and are fixed:
 3. **The snake_case convention skipped value objects.** EF complex-type members are
    not in `GetProperties()`, so `Address_City` survived in PascalCase while every
    other column was converted. Fixed by recursing through `GetComplexProperties()`.
+4. **The backend health check never ran once.** `docker compose up --wait` failed
+   in CI while every unit suite was green. The check was `wget`, and the ASP.NET
+   runtime image is Debian slim, which ships neither `wget` nor `curl` — so it
+   exited 127 on every probe, the container was marked unhealthy after its twelve
+   retries, and the frontend that depends on it never started. Nothing in the
+   backend log said so, because a probe that never reaches the application cannot
+   log. Local runs missed it because they use `dotnet run`, not the image. Fixed
+   by installing `curl` in the runtime stage and declaring the check in the
+   Dockerfile, where a `healthcheck:` block in Compose can no longer override it
+   with something the image cannot execute.
+
+   The frontend check had the same shape of flaw waiting behind it: it probed `/`,
+   which redirects to a page that calls the API, so a slow backend would have
+   reported the *frontend* as unhealthy. It now probes `/health`, which depends on
+   nothing downstream.
 
 ---
 

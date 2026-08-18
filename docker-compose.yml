@@ -65,12 +65,11 @@ services:
       Outbox__BatchSize: "20"
     ports:
       - "8080:8080"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
+    # The health check lives in backend/Dockerfile, next to the runtime it probes.
+    # A `healthcheck:` block here would override the image's, which is how the
+    # previous one — written against a wget the Debian slim runtime does not have
+    # — stayed broken while looking configured. `depends_on: service_healthy`
+    # below reads the image's result all the same.
     networks: [jobtracker]
 
   # ---------------------------------------------------------------------------

@@ -59,8 +59,14 @@ USER nextjs
 
 EXPOSE 3000
 
+# `/health` rather than `/`: the root redirects to a page that calls the API, so
+# probing it would tie this container's liveness to the backend's availability.
+# See the comment in app/health/route.ts.
+#
+# busybox wget, which the Alpine base does provide — unlike the Debian-based
+# backend image, where the equivalent check had to install curl first.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
-  CMD wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1
 
 # The standalone entry point, not `next start` — see above.
 CMD ["node", "server.js"]
