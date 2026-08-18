@@ -86,10 +86,12 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      # Server-side (inside the compose network).
+      # Server-side, over the compose network. There is no browser-side
+      # equivalent on purpose: every call to the API goes through a Server
+      # Component or a Server Action, so the browser never holds an API URL and
+      # never sees a token. A `NEXT_PUBLIC_` variable here would be dead config
+      # implying an architecture this app does not have.
       API_BASE_URL: "http://backend:8080"
-      # Browser-side (published port on the host).
-      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8080"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318"
       OTEL_SERVICE_NAME: "jobtracker-frontend"
     ports:

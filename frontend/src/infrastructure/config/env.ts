@@ -19,8 +19,17 @@ import { z } from 'zod';
  * the missing variable. Parsing names the variable and the reason.
  */
 const serverEnvSchema = z.object({
-  /** Where the API lives from the server's perspective (inside the compose network). */
-  API_BASE_URL: z.string().url().default('http://localhost:5000'),
+  /**
+   * Where the API lives from the server's perspective.
+   *
+   * The default is the port `dotnet run` actually serves on — the one in the
+   * API's launchSettings.json — so `dotnet run` and `npm run dev` talk to each
+   * other with nothing configured. Compose overrides it with the service name.
+   *
+   * Deliberately not 5000: that is the historical ASP.NET default, but macOS
+   * binds it to the AirPlay receiver, which is why .NET stopped using it.
+   */
+  API_BASE_URL: z.string().url().default('http://localhost:5106'),
 
   /**
    * Development tenant and user.

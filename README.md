@@ -29,7 +29,7 @@ Open http://localhost:3000 and the jobs list is live.
 # PostgreSQL only
 docker compose up -d postgres
 
-# Backend  → http://localhost:5000
+# Backend  → http://localhost:5106  (el puerto de launchSettings.json)
 cd backend && dotnet run --project src/JobTracker.Api
 
 # Frontend → http://localhost:3000
