@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch cancels the run in flight. Without this, a busy
+# branch queues runs that are already obsolete and the useful one waits behind
+# them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend — build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # .NET 10, building a `net9.0` target framework.
+      #
+      # .NET 9 reached end of life in May 2026 and `setup-dotnet` can no longer
+      # install its SDK. The 10 SDK compiles `net9.0` faithfully, and
+      # `<RollForward>LatestMajor</RollForward>` in Directory.Build.props lets the
+      # test host run on the 10 runtime. See the README.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Keyed on the central package file: with Central Package Management every
+      # version lives in one place, so that file changing is exactly when the
+      # cache should be invalidated.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('backend/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        working-directory: backend
+        run: dotnet restore JobTracker.sln
+
+      # `TreatWarningsAsErrors` is on, so this step also enforces the analyzer
+      # rules and fails on any NuGet package with a known vulnerability.
+      - name: Build
+        working-directory: backend
+        run: dotnet build JobTracker.sln --configuration Release --no-restore
+
+      # Includes the NetArchTest suite, so a layering or naming violation fails
+      # the build rather than waiting for a reviewer to notice it.
+      - name: Test
+        working-directory: backend
+        run: dotnet test JobTracker.sln --configuration Release --no-build --logger "trx;LogFileName=results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/**/TestResults/*.trx
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend — lint, typecheck, test, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci`, not `npm install`: it installs exactly the lockfile and fails if
+      # the lockfile and manifest disagree, rather than silently resolving a newer
+      # dependency during a CI run.
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      # Each step runs even if an earlier one failed, so one run reports every
+      # problem instead of one problem per push.
+      - name: Lint
+        if: always()
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Typecheck
+        if: always()
+        working-directory: frontend
+        run: npm run typecheck
+
+      # Runs the runtime suite and the type-level suite, and enforces the coverage
+      # thresholds.
+      - name: Test with coverage
+        if: always()
+        working-directory: frontend
+        run: npm run test:coverage
+
+      # The build independently runs lint and the type checker, and `force-dynamic`
+      # on the tenant-scoped routes means it does not need the API to be reachable.
+      - name: Build
+        if: always()
+        working-directory: frontend
+        run: npm run build
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: End-to-end — full stack
+    runs-on: ubuntu-latest
+    # Only after the unit suites pass. An E2E failure is expensive to diagnose,
+    # and there is no point paying for one when a unit test already explains why.
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The same compose file a developer runs locally, so a green CI run means
+      # the documented command works.
+      - name: Start the stack
+        run: docker compose up --build --detach --wait --wait-timeout 300
+
+      - name: Install Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run the E2E suite
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://localhost:3000
+        run: npx playwright test
+
+      # Screenshots, videos and traces for whatever failed. Retained on failure
+      # only — recordings of passing tests are storage nobody reads.
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+
+      # Container logs are usually where the real cause is when an E2E test fails
+      # for a reason the browser cannot see.
+      - name: Dump service logs
+        if: failure()
+        run: docker compose logs --no-color --tail 300
+
+      - name: Tear down
+        if: always()
+        run: docker compose down --volumes
