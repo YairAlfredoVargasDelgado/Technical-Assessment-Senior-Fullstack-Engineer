@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\JobTracker.Modules.Jobs.Domain\JobTracker.Modules.Jobs.Domain.csproj" />
+    <ProjectReference Include="..\JobTracker.Modules.Jobs.IntegrationEvents\JobTracker.Modules.Jobs.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\Common\JobTracker.Common.Application\JobTracker.Common.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="MediatR" />
+  </ItemGroup>
+
+  <!--
+    The assessment requires handlers and validators to be `internal sealed`, and
+    that is the right visibility: nothing outside this assembly should reference a
+    handler directly — they are reached through MediatR.
+
+    Unit tests are the exception, and `InternalsVisibleTo` is how .NET expresses
+    it. The alternative — widening every handler to `public` so a test can see it
+    — would trade a real encapsulation boundary for test convenience, and would
+    break the naming convention the architecture tests enforce.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="JobTracker.Jobs.Application.UnitTests" />
+    <InternalsVisibleTo Include="JobTracker.ArchitectureTests" />
+  </ItemGroup>
+</Project>
