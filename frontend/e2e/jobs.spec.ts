@@ -89,8 +89,8 @@ test.describe('Jobs', () => {
     await page.getByTestId('create-job-city').fill('Newark');
     await page.getByTestId('create-job-state').fill('NJ');
     await page.getByTestId('create-job-zip').fill('07102');
-    await page.getByTestId('create-job-customer').fill(CUSTOMER_ID);
-    await page.getByTestId('create-job-assignee').fill(ASSIGNEE_ID);
+    await page.getByTestId('create-job-customer').selectOption(CUSTOMER_ID);
+    await page.getByTestId('create-job-assignee').selectOption(ASSIGNEE_ID);
 
     const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
     await page.getByTestId('create-job-scheduled-date').fill(past);

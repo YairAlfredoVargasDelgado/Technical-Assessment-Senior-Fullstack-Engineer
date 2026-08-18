@@ -6,6 +6,7 @@ import {
   TableErrorFallback,
 } from '@/presentation/components/organisms/error-boundary.component';
 import type { Job } from '@/domain/entities/job/job.entity';
+import type { Directory } from '@/application/ports/directory.port';
 
 import { CreateJobModal } from '../../features/create-job';
 import { FilterBar } from '../../features/filter-jobs';
@@ -25,6 +26,9 @@ interface JobsClientProps {
   readonly initialJobs: readonly Job[];
   readonly initialCursor: string | null;
   readonly initialHasNextPage: boolean;
+
+  /** Picker options for the create dialog, resolved on the server. */
+  readonly directory: Directory;
 }
 
 /**
@@ -46,7 +50,7 @@ interface JobsClientProps {
  * One hook call and some JSX. Every handler, every piece of state and every
  * derivation lives in `useJobsPage` and the slices it composes.
  */
-export function JobsClient({ initialJobs, initialHasNextPage }: JobsClientProps) {
+export function JobsClient({ initialJobs, initialHasNextPage, directory }: JobsClientProps) {
   const page = useJobsPage(initialJobs);
 
   return (
@@ -83,6 +87,7 @@ export function JobsClient({ initialJobs, initialHasNextPage }: JobsClientProps)
         open={page.isCreateModalOpen}
         onClose={page.closeCreateModal}
         form={page.creation}
+        directory={directory}
       />
 
       <CompleteJobModal completion={page.completion} />

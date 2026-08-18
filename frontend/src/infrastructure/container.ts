@@ -1,12 +1,15 @@
 import 'server-only';
 
 import { CreateJobUseCase } from '@/application/use-cases/create-job.use-case';
+import { LoadDirectoryUseCase } from '@/application/use-cases/load-directory.use-case';
 import { GetJobUseCase } from '@/application/use-cases/get-job.use-case';
 import { SearchJobsUseCase } from '@/application/use-cases/search-jobs.use-case';
 import { TransitionJobUseCase } from '@/application/use-cases/transition-job.use-case';
 import type { JobRepositoryPort } from '@/application/ports/job-repository.port';
+import type { DirectoryPort } from '@/application/ports/directory.port';
 
 import { HttpJobRepository } from './http/http-job-repository';
+import { HttpDirectoryRepository } from './http/http-directory.repository';
 
 /**
  * The composition root.
@@ -48,6 +51,10 @@ class Container {
   public readonly getJob: GetJobUseCase = new GetJobUseCase(this.jobRepository);
 
   public readonly transitionJob: TransitionJobUseCase = new TransitionJobUseCase(this.jobRepository);
+
+  private readonly directory: DirectoryPort = new HttpDirectoryRepository();
+
+  public readonly loadDirectory: LoadDirectoryUseCase = new LoadDirectoryUseCase(this.directory);
 }
 
 let instance: Container | null = null;

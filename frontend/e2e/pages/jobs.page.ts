@@ -108,9 +108,11 @@ export class JobsPage {
     await this.page.getByTestId('create-job-city').fill('Newark');
     await this.page.getByTestId('create-job-state').fill('NJ');
     await this.page.getByTestId('create-job-zip').fill('07102');
-    await this.page.getByTestId('create-job-customer').fill(input.customerId);
+    // A dropdown, not a text field: the value is an identifier the API understands
+    // and the label is a name the user recognises, so the suite selects by value.
+    await this.page.getByTestId('create-job-customer').selectOption(input.customerId);
     await this.page.getByTestId('create-job-scheduled-date').fill(input.scheduledAt);
-    await this.page.getByTestId('create-job-assignee').fill(input.assigneeId);
+    await this.page.getByTestId('create-job-assignee').selectOption(input.assigneeId);
 
     const submit = this.page.getByTestId('create-job-submit');
     await expect(submit).toBeEnabled();

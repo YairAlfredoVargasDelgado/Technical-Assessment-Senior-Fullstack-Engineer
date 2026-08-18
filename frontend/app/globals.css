@@ -163,6 +163,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+
+  /*
+   * The line that keeps the form inside the dialog.
+   *
+   * A grid or flex item defaults to `min-width: auto`, which refuses to shrink
+   * below the item's min-content width. An <input> carries an intrinsic width of
+   * roughly twenty characters, so three of them in a `2fr 1fr 1fr` row demand
+   * ~540px and simply overflowed the 528px the dialog has to give — the columns
+   * cannot shrink, so the box grows. `0` lets the track sizes actually win.
+   */
+  min-width: 0;
 }
 
 .field__label {
@@ -179,6 +190,50 @@ body {
   border-radius: var(--radius);
   background: var(--color-surface);
   color: var(--color-text);
+
+  /*
+   * Fill the column rather than the control's own idea of its size. Needed for
+   * every input, and unavoidable for `datetime-local`, which is wider than a text
+   * input and was the first control to escape the dialog.
+   */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/*
+ * Rows of side-by-side fields.
+ *
+ * Classes rather than inline `style` objects: these were the only inline layout
+ * in the codebase, so the rule that broke them lived somewhere CSS could not see
+ * or override, and the fix had to be repeated at each call site.
+ */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.form-row--address {
+  grid-template-columns: 2fr 1fr 1fr;
+}
+
+/*
+ * One column on narrow viewports. Three fields sharing 300px are three fields
+ * nobody can read, and the dialog is already at `100vw - 32px` there.
+ */
+@media (max-width: 520px) {
+  .form-row,
+  .form-row--address {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fieldset--plain {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 
 .field__control[aria-invalid='true'] {
@@ -284,6 +339,16 @@ body {
   width: min(560px, calc(100vw - 32px));
   background: var(--color-surface);
   color: var(--color-text);
+
+  /*
+   * Header and footer stay put while the fields scroll. Without this the dialog
+   * grows past the viewport on a short window and the submit button ends up
+   * somewhere the user cannot reach — the vertical version of the same bug.
+   */
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .modal__header,
@@ -313,6 +378,13 @@ body {
   padding: var(--space-4);
   display: grid;
   gap: var(--space-3);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.modal__header,
+.modal__footer {
+  flex-shrink: 0;
 }
 
 /* ----------------------------- Alert ------------------------------------ */

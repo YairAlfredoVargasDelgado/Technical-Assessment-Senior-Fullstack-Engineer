@@ -20,7 +20,16 @@ docker compose up --build
 | PostgreSQL | `localhost:5432` — `jobtracker` / `jobtracker` |
 
 The backend applies both modules' EF Core migrations on start-up in Development.
-Open http://localhost:3000 and the jobs list is live.
+Nothing else to configure — no `.env`, no seed step, no sign-in.
+
+Open http://localhost:3000. **The database starts empty, so the first thing on
+screen is the empty state rather than a table** — press *New job* to create one.
+The customer and assignee fields are dropdowns filled from `/api/directory/*`.
+
+Completing a job generates an invoice a few seconds later, through the outbox and
+Hangfire rather than in the request. That path is the one worth watching: the
+Hangfire dashboard shows the worker, and Jaeger shows one trace spanning the
+browser, the Next.js server and the API.
 
 <details>
 <summary>Running each part directly</summary>
@@ -29,7 +38,7 @@ Open http://localhost:3000 and the jobs list is live.
 # PostgreSQL only
 docker compose up -d postgres
 
-# Backend  → http://localhost:5106  (el puerto de launchSettings.json)
+# Backend  → http://localhost:5106  (the port launchSettings.json serves on)
 cd backend && dotnet run --project src/JobTracker.Api
 
 # Frontend → http://localhost:3000
@@ -42,7 +51,7 @@ cd frontend && npm ci && npm run dev
 ```bash
 cd backend  && dotnet test                    # 103 tests — domain, handlers, architecture
 cd frontend && npm test                       # 183 runtime tests
-cd frontend && npm run test:coverage          # 94.0% lines / 96.5% branches
+cd frontend && npm run test:coverage          # 93.3% lines / 96.5% branches
 cd frontend && npm run test:e2e               # 11 Playwright specs, incl. accessibility
 ```
 
@@ -174,6 +183,28 @@ calls `notFound()` when the API reports the job is absent. It reports the same
 thing when the job belongs to another organisation, because distinguishing the two
 would confirm to an attacker that an identifier is real.
 
+**A directory endpoint rather than a Contacts module.** The create-job pickers
+need customers and crew, and a job references both by identifier without owning
+either — they belong to contexts this codebase does not implement. Modelling them
+as aggregates would invent a lifecycle and invariants that do not exist: nothing
+to enforce, no transition to guard, no rule that could be broken. It would also
+put customer data inside the Jobs module, contradicting the boundary
+`LayerDependencyTests` enforces. So `/api/directory/customers` and
+`/api/directory/crew` serve fixed reference data from the composition root,
+labelled as the stand-in they are.
+
+The alternative — a hard-coded list in the frontend — was rejected because it puts
+a second copy of those identifiers somewhere the API knows nothing about. Serving
+them means the picker consumes a real HTTP contract, so replacing this with a
+genuine Contacts module is a change of implementation behind an unchanged
+endpoint, with no client edit at all.
+
+**One transport, two repositories.** Adding the directory adapter would have meant
+a second copy of the auth header, the timeout, the 401 handling and the
+ProblemDetails translation. That logic moved to `api-client.ts` and both
+repositories call it — a free function, not a base class, because they need a
+transport rather than an ancestor.
+
 ---
 
 ## What was verified, not assumed
@@ -185,7 +216,7 @@ Every row below is observed output, not a claim about the code.
 | Backend | 17 projects, `TreatWarningsAsErrors`, zero warnings |
 | Backend tests | 103 — 60 aggregate/value object, 8 handler (Moq), 35 architecture (NetArchTest) |
 | Frontend tests | 223 — 183 runtime (`npm test`), 40 type-level (`npm run test:types`) |
-| Coverage | 94.0% lines, 96.5% branches, 94.4% functions — over `src`, thresholds at 80 |
+| Coverage | 93.3% lines, 96.5% branches, 94.4% functions — over `src`, thresholds at 80 |
 | E2E | 11 Playwright specs against Next + .NET + PostgreSQL, nothing mocked |
 | Multi-tenancy | A token for organisation B returns `items: 0` for organisation A's jobs |
 | Async pipeline | Complete a job → outbox row → Hangfire → integration event → invoice row |
@@ -194,7 +225,7 @@ Every row below is observed output, not a claim about the code.
 | Keyset vs OFFSET | 0.07 ms vs 6.90 ms at depth 2 400 — Index Only Scan vs Bitmap + Sort |
 | Full-text | GIN index used via `BitmapAnd` on selective terms; ordered index preferred on common ones |
 
-Four bugs surfaced only by running the system, and are fixed:
+Six bugs surfaced only by running the system, and are fixed:
 
 1. **API/UI contract mismatch** — the backend returned a flat address, the frontend
    expected a nested one. Fixed in the backend, which had the weaker design.
@@ -219,6 +250,22 @@ Four bugs surfaced only by running the system, and are fixed:
    which redirects to a page that calls the API, so a slow backend would have
    reported the *frontend* as unhealthy. It now probes `/health`, which depends on
    nothing downstream.
+
+5. **The create-job dialog overflowed its own box.** The address row is
+   `2fr 1fr 1fr`, but a grid item defaults to `min-width: auto` and so refuses to
+   shrink below its min-content width — and an `<input>` carries an intrinsic
+   width of about twenty characters. Three of them demanded ~540px in the 528px
+   the dialog has, so the controls hung outside it; `datetime-local`, being wider
+   still, escaped first. Fixed with `min-width: 0` on the field and `width: 100%`
+   on the control, plus a scrolling body so a short window cannot push the submit
+   button out of reach either. The inline `style` objects those rows used are now
+   classes: they were the only inline layout in the codebase, which is precisely
+   why the broken rule lived somewhere no stylesheet could see or override.
+
+6. **The customer and assignee fields asked the user for a UUID.** Correct
+   against the API and unusable by a human. They are dropdowns now, filled from
+   `/api/directory/*` — see below for why that is an endpoint rather than a
+   hard-coded list in the UI.
 
 ---
 
@@ -320,13 +367,7 @@ Ordered by what I would reach for first, with the reason rather than the label.
    tested; the UI currently renders the first page and says more exist. Wiring
    `nextCursor` to a scroll handler is the remaining step.
 
-5. **Directory-backed pickers for customer and assignee.** Both are UUID text
-   inputs today, and both are marked in the UI as standing in for a picker backed
-   by the Contacts module — which is also the case study in
-   [`database/README.md`](database/README.md) for denormalization vs integration
-   events.
-
-6. **`ts_rank` ordering for full-text search.** The measured `EXPLAIN` shows the
+5. **`ts_rank` ordering for full-text search.** The measured `EXPLAIN` shows the
    one case where the query degrades: a search matching many rows, paged deeply,
    where the sort is unavoidable. Ranking sidesteps the conflict entirely, and
    search results usually want relevance ordering anyway.

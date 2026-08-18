@@ -3,7 +3,10 @@
 import { Button } from '@/presentation/components/atoms/button.component';
 import { ToggleButton } from '@/presentation/components/atoms/toggle-button.component';
 import { Modal } from '@/presentation/components/molecules/modal.component';
+import { SelectField } from '@/presentation/components/molecules/select-field.component';
+import type { SelectOption } from '@/presentation/components/molecules/select-field.component';
 import { TextField } from '@/presentation/components/molecules/text-field.component';
+import type { Directory } from '@/application/ports/directory.port';
 
 import type { UseCreateJobResult } from '../../hooks/use-create-job.hook';
 
@@ -12,6 +15,14 @@ interface CreateJobModalProps {
   readonly onClose: () => void;
   /** Every piece of behaviour, supplied by the orchestrating hook. */
   readonly form: UseCreateJobResult;
+  /**
+   * The picker options, fetched on the server and passed down as props.
+   *
+   * Not fetched here: this component stays a shell with no data access, and the
+   * options are already known by the time the page renders, so a client-side
+   * request would only add a spinner to a dialog that could have opened complete.
+   */
+  readonly directory: Directory;
 }
 
 /**
@@ -34,8 +45,11 @@ interface CreateJobModalProps {
  * what makes the whole form one atomic reducer transition rather than eleven
  * independent ones.
  */
-export function CreateJobModal({ open, onClose, form }: CreateJobModalProps) {
+export function CreateJobModal({ open, onClose, form, directory }: CreateJobModalProps) {
   const isScheduled = form.values.mode === 'scheduled';
+
+  const customerOptions = toOptions(directory.customers);
+  const crewOptions = toOptions(directory.crew);
 
   return (
     <Modal
@@ -66,7 +80,7 @@ export function CreateJobModal({ open, onClose, form }: CreateJobModalProps) {
         </p>
       ) : null}
 
-      <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+      <fieldset className="fieldset--plain">
         <legend className="field__label">Scheduling</legend>
 
         <div className="toolbar" role="group" aria-label="Scheduling mode">
@@ -117,7 +131,7 @@ export function CreateJobModal({ open, onClose, form }: CreateJobModalProps) {
         required
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
+      <div className="form-row form-row--address">
         <TextField
           label="City"
           value={form.values.city}
@@ -149,13 +163,14 @@ export function CreateJobModal({ open, onClose, form }: CreateJobModalProps) {
         />
       </div>
 
-      <TextField
+      <SelectField
         label="Customer"
         value={form.values.customerId}
         onValueChange={(value) => form.setField('customerId', value)}
         onBlur={() => form.blurField('customerId')}
         error={form.visibleErrors.customerId}
-        hint="Customer identifier (UUID). A real deployment renders a picker backed by the Contacts module."
+        options={customerOptions}
+        placeholder="Select a customer"
         testId="create-job-customer"
         required
       />
@@ -167,7 +182,7 @@ export function CreateJobModal({ open, onClose, form }: CreateJobModalProps) {
         value into the DOM. Enforced by an ESLint rule, not by review.
       */}
       {isScheduled ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="form-row">
           <TextField
             label="Scheduled date"
             type="datetime-local"
@@ -179,13 +194,14 @@ export function CreateJobModal({ open, onClose, form }: CreateJobModalProps) {
             required
           />
 
-          <TextField
+          <SelectField
             label="Assignee"
             value={form.values.assigneeId}
             onValueChange={(value) => form.setField('assigneeId', value)}
             onBlur={() => form.blurField('assigneeId')}
             error={form.visibleErrors.assigneeId}
-            hint="Crew member identifier (UUID)."
+            options={crewOptions}
+            placeholder="Select a crew member"
             testId="create-job-assignee"
             required
           />
@@ -193,4 +209,15 @@ export function CreateJobModal({ open, onClose, form }: CreateJobModalProps) {
       ) : null}
     </Modal>
   );
+}
+
+/**
+ * The directory speaks of entries; the control speaks of options.
+ *
+ * One adapter here rather than a `DirectoryEntry`-shaped prop on `SelectField`,
+ * which would tie a generic control to this application's vocabulary and stop it
+ * being reusable for any other list.
+ */
+function toOptions(entries: Directory['customers']): readonly SelectOption[] {
+  return entries.map((entry) => ({ value: entry.id, label: entry.name }));
 }

@@ -7,6 +7,7 @@ import { DEFAULT_PAGE_SIZE } from '@/presentation/stores/jobs.store';
 import { JobsTableSkeleton } from '@/presentation/components/atoms/skeleton.component';
 import { JobsView } from '@/presentation/views/jobs';
 import type { JobPage } from '@/domain/entities/job/job.entity';
+import type { Directory } from '@/application/ports/directory.port';
 import type { AppResult } from '@/domain/errors';
 
 /**
@@ -60,6 +61,10 @@ export default function JobsPage() {
   // Deliberately not awaited. See above.
   const jobsPromise = container().searchJobs.execute({ limit: DEFAULT_PAGE_SIZE });
 
+  // Started here, beside the search, so the two requests overlap rather than
+  // queue. Both are awaited together inside the boundary below.
+  const directoryPromise = container().loadDirectory.execute();
+
   return (
     <main className="page" id="main-content">
       <div className="page__header">
@@ -70,7 +75,7 @@ export default function JobsPage() {
       </div>
 
       <Suspense fallback={<JobsTableSkeleton />}>
-        <JobsLoader promise={jobsPromise} />
+        <JobsLoader promise={jobsPromise} directoryPromise={directoryPromise} />
       </Suspense>
     </main>
   );
@@ -87,8 +92,16 @@ export default function JobsPage() {
  * error UI and it only sees thrown errors — handling the failure here would mean
  * building a second error screen beside the one the framework already provides.
  */
-async function JobsLoader({ promise }: { readonly promise: Promise<AppResult<JobPage>> }) {
-  const result = await promise;
+async function JobsLoader({
+  promise,
+  directoryPromise,
+}: {
+  readonly promise: Promise<AppResult<JobPage>>;
+  readonly directoryPromise: Promise<AppResult<Directory>>;
+}) {
+  // `Promise.all`, not two awaits: sequential awaits would make the boundary wait
+  // for the sum of both round trips even though neither depends on the other.
+  const [result, directoryResult] = await Promise.all([promise, directoryPromise]);
 
   if (!result.ok) {
     throw new Error(result.error.message);
@@ -99,6 +112,11 @@ async function JobsLoader({ promise }: { readonly promise: Promise<AppResult<Job
       initialJobs={result.value.items}
       initialCursor={result.value.nextCursor}
       initialHasNextPage={result.value.hasNextPage}
+      // The adapter already degrades to empty lists, so this cannot fail the page
+      // — a directory outage costs the pickers their options, not the job list.
+      directory={directoryResult.ok ? directoryResult.value : EMPTY_DIRECTORY}
     />
   );
 }
+
+const EMPTY_DIRECTORY: Directory = { customers: [], crew: [] };
