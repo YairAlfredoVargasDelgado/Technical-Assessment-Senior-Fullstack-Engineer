@@ -1,0 +1,37 @@
+<Project>
+
+  <!--
+    Single source of truth for compiler settings across every project in the solution.
+    Adding a project inherits the whole policy; nothing is repeated in .csproj files.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+
+    <!--
+      Run on a newer major runtime when the exact one is absent.
+
+      The target framework stays `net9.0` as the brief requires, and Docker pins
+      the runtime precisely (`mcr.microsoft.com/dotnet/aspnet:9.0`), so the
+      deployed image is unaffected by this setting. It exists so that `dotnet
+      test` and `dotnet run` work on a reviewer's machine that has only .NET 10
+      installed — .NET 9 reached end of life in May 2026 and is no longer offered
+      by the installers. Without it the build succeeds and every test aborts with
+      "You must install or update .NET to run this application".
+    -->
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != '' AND $(MSBuildProjectName.EndsWith('Tests'))">
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+</Project>

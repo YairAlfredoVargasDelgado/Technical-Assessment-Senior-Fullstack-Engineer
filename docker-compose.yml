@@ -1,0 +1,105 @@
+name: jobtracker
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL. Schema-per-module isolation lives inside this single instance:
+  # `jobs`, `billing` and `hangfire` schemas, one database.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: jobtracker-postgres
+    environment:
+      POSTGRES_USER: jobtracker
+      POSTGRES_PASSWORD: jobtracker
+      POSTGRES_DB: jobtracker
+      # Deterministic collation so ORDER BY is identical across machines.
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-US --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobtracker -d jobtracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [jobtracker]
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry collector + UI. Receives traces from BOTH the Next.js server
+  # runtime and the .NET API, so a single trace spans the whole request path.
+  # ---------------------------------------------------------------------------
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: jobtracker-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    networks: [jobtracker]
+
+  # ---------------------------------------------------------------------------
+  # .NET 9 modular monolith. Applies EF Core migrations on boot in Development.
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jobtracker-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Database: "Host=postgres;Port=5432;Database=jobtracker;Username=jobtracker;Password=jobtracker;Include Error Detail=true"
+      Authentication__Issuer: "https://jobtracker.local"
+      Authentication__Audience: "jobtracker-api"
+      # Dev-only symmetric signing key. Production uses an asymmetric key from a secret store.
+      Authentication__SigningKey: "dev-only-signing-key-change-me-in-production-32b+"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      Outbox__PollingIntervalSeconds: "10"
+      Outbox__BatchSize: "20"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [jobtracker]
+
+  # ---------------------------------------------------------------------------
+  # Next.js 15 App Router. Server Components call the API server-side over the
+  # compose network; the browser calls it through the published port.
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jobtracker-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      # Server-side (inside the compose network).
+      API_BASE_URL: "http://backend:8080"
+      # Browser-side (published port on the host).
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8080"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318"
+      OTEL_SERVICE_NAME: "jobtracker-frontend"
+    ports:
+      - "3000:3000"
+    networks: [jobtracker]
+
+volumes:
+  postgres-data:
+
+networks:
+  jobtracker:
+    driver: bridge

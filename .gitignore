@@ -1,0 +1,41 @@
+# ---- .NET ----
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+artifacts/
+.vs/
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+.turbo/
+
+# ---- Testing ----
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+*.trx
+
+# ---- Env ----
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---- OS / editors ----
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# ---- Logs ----
+*.log
+npm-debug.log*
