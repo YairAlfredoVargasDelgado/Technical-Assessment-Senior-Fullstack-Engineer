@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Billing's own Open Host Service contract (e.g. InvoiceGeneratedIntegrationEvent). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\JobTracker.Common.Application\JobTracker.Common.Application.csproj" />
+  </ItemGroup>
+</Project>

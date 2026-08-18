@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The ONLY link from Billing to Jobs is Jobs.IntegrationEvents (the published contract).
+    Billing.Domain / Application / Infrastructure of the Jobs module are unreachable from here,
+    which is what keeps the bounded contexts decoupled. ArchitectureTests assert this.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\JobTracker.Modules.Billing.Domain\JobTracker.Modules.Billing.Domain.csproj" />
+    <ProjectReference Include="..\JobTracker.Modules.Billing.IntegrationEvents\JobTracker.Modules.Billing.IntegrationEvents.csproj" />
+    <ProjectReference Include="..\..\..\Common\JobTracker.Common.Application\JobTracker.Common.Application.csproj" />
+    <ProjectReference Include="..\..\Jobs\JobTracker.Modules.Jobs.IntegrationEvents\JobTracker.Modules.Jobs.IntegrationEvents.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+  </ItemGroup>
+</Project>

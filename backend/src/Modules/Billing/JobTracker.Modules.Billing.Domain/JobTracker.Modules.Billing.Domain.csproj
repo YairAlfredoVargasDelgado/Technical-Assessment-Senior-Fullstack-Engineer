@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\JobTracker.Common.Domain\JobTracker.Common.Domain.csproj" />
+  </ItemGroup>
+</Project>
