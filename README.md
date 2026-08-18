@@ -262,6 +262,14 @@ Six bugs surfaced only by running the system, and are fixed:
    classes: they were the only inline layout in the codebase, which is precisely
    why the broken rule lived somewhere no stylesheet could see or override.
 
+   The first attempt at that fix introduced a worse bug. Making the dialog a
+   flex column so its body could scroll put `display: flex` on `.modal` — which
+   overrides the user-agent stylesheet's `display: none` for a **closed**
+   `<dialog>`, leaving an empty bordered box rendered on the page. The E2E suite
+   reported it as a modal that never disappeared after a successful submit, and
+   the call log showed the `open` attribute already gone: the component was
+   right, the stylesheet was wrong. The rule is now `.modal[open]`.
+
 6. **The customer and assignee fields asked the user for a UUID.** Correct
    against the API and unusable by a human. They are dropdowns now, filled from
    `/api/directory/*` — see below for why that is an endpoint rather than a

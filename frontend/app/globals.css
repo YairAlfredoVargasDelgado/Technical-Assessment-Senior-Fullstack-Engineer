@@ -346,9 +346,23 @@ body {
    * somewhere the user cannot reach — the vertical version of the same bug.
    */
   max-height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+/*
+ * The layout applies only while the dialog is open, and that qualifier is
+ * load-bearing.
+ *
+ * A <dialog> is hidden by the user-agent stylesheet's `display: none`, which any
+ * `display` declared on the element itself overrides. Setting `display: flex` on
+ * `.modal` therefore left the *closed* dialog rendered — an empty bordered box
+ * sitting on the page. The end-to-end suite caught it as a modal that never
+ * disappeared after a successful submit; the `open` attribute was gone from the
+ * element, so the component was right and the stylesheet was wrong.
+ */
+.modal[open] {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .modal__header,
