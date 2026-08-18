@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Needs ASP.NET Core types (IEndpointRouteBuilder, IResult) for the endpoint abstraction. -->
+    <UseAspNetCoreFramework>true</UseAspNetCoreFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JobTracker.Common.Application\JobTracker.Common.Application.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The innermost layer. It references exactly one package, and only its
+    contracts assembly.
+
+    `MediatR.Contracts` contains the marker interfaces `IRequest` and
+    `INotification` and nothing else — no dispatcher, no DI, no behaviour, and
+    itself no dependencies. Depending on it is depending on a shape, not on a
+    framework, which is why `ArchitectureTests` allows this single exception and
+    forbids every other third-party reference from the Domain layer.
+
+    The alternative — a hand-rolled dispatcher so the Domain can stay literally
+    package-free — would mean reimplementing handler fan-out that MediatR
+    already provides, purely to satisfy a rule rather than to serve the design.
+  -->
+  <ItemGroup>
+    <PackageReference Include="MediatR.Contracts" />
+  </ItemGroup>
+
+</Project>
