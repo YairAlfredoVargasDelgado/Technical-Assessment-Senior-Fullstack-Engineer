@@ -57,6 +57,19 @@ cd frontend && npm run test:e2e               # 11 Playwright specs, incl. acces
 
 ---
 
+## The brief
+
+[`docs/assessment/brief.md`](docs/assessment/brief.md) is the assessment as
+handed over, committed verbatim so every decision here can be read next to the
+requirement it answers. Two things it settles that would otherwise be guesses:
+the domain is a **US** one — `Address` is enumerated as street, city, **state**,
+**zip code**, latitude and longitude, with no country field, in both §3.1 and the
+SQL of §4.1 — and internationalisation is never mentioned, so the fixed `en-US`
+date format and the `USD` invoice default follow the domain the brief describes
+rather than a requirement it states.
+
+---
+
 ## Reading the code
 
 Start with these three, in order. They carry the decisions the rest follows from.

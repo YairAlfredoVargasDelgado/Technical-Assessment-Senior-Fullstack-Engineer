@@ -184,9 +184,14 @@ function JobRow({ job, page }: { readonly job: Job; readonly page: UseJobsPageRe
  * server and the browser would otherwise render the same instant differently,
  * producing a hydration mismatch — and every assertion in the E2E suite would
  * depend on the machine's locale.
+ *
+ * `en-US` because that is the domain the brief describes: an `Address` of street,
+ * city, **state** and **zip code** with no country field is a US address. Fixing
+ * the locale is what buys determinism; which locale it is fixed to should still
+ * match the users being modelled.
  */
 function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone: 'UTC',
