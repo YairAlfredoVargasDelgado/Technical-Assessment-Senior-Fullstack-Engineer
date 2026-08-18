@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    OPEN HOST SERVICE (OHS).
+    This is the Jobs module's published language. Other modules reference ONLY this
+    assembly. It carries immutable DTO contracts and nothing else, so a change here is
+    a deliberate, reviewable contract change rather than an accidental coupling.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\JobTracker.Common.Application\JobTracker.Common.Application.csproj" />
+  </ItemGroup>
+</Project>

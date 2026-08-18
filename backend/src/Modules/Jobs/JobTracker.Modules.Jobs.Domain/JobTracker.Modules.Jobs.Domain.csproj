@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure domain: shared kernel only. No MediatR, no EF Core, no ASP.NET. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\JobTracker.Common.Domain\JobTracker.Common.Domain.csproj" />
+  </ItemGroup>
+</Project>
