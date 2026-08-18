@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JobTracker.Modules.Jobs.Application\JobTracker.Modules.Jobs.Application.csproj" />
+    <ProjectReference Include="..\..\..\Common\JobTracker.Common.Presentation\JobTracker.Common.Presentation.csproj" />
+  </ItemGroup>
+</Project>
