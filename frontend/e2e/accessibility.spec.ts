@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { JobsPage } from './pages/jobs.page';
+import { ASSIGNEE_ID, CUSTOMER_ID, scheduledSoon, uniqueTitle } from './test-data';
 
 /**
  * Automated accessibility checks.
@@ -19,6 +20,43 @@ import { JobsPage } from './pages/jobs.page';
  */
 
 test.describe('Accessibility', () => {
+  /**
+   * Guarantees the page under test has a table on it.
+   *
+   * Every assertion in this file is about table semantics — a header that reports
+   * its sort state, a checkbox per row. With no jobs the page renders its empty
+   * state instead and there is no `th` at all, so `the sorted column is
+   * announced` fails outright and the row-checkbox and axe checks pass over
+   * nothing, which is worse: a green test that examined zero elements.
+   *
+   * That is not hypothetical. This file passed locally against a database left
+   * populated by manual testing and failed on the first CI run against a fresh
+   * volume. A test must create what it depends on rather than inherit it.
+   *
+   * `beforeAll` rather than `beforeEach`: one row is enough for all five, and
+   * seeding per test would pay the create round trip four more times for nothing.
+   */
+  test.beforeAll(async ({ browser }, testInfo) => {
+    // `browser.newPage()` does not inherit the project's `use`, so the base URL
+    // has to be handed over explicitly. Spread conditionally rather than passed
+    // as `undefined`, which `exactOptionalPropertyTypes` correctly rejects.
+    const { baseURL } = testInfo.project.use;
+    const context = await browser.newContext(baseURL === undefined ? {} : { baseURL });
+
+    try {
+      const jobs = new JobsPage(await context.newPage());
+      await jobs.goto();
+      await jobs.createScheduledJob({
+        title: uniqueTitle('A11y fixture'),
+        customerId: CUSTOMER_ID,
+        assigneeId: ASSIGNEE_ID,
+        scheduledAt: scheduledSoon(),
+      });
+    } finally {
+      await context.close();
+    }
+  });
+
   test('the jobs list has no detectable WCAG 2.1 A/AA violations', async ({ page }) => {
     const jobs = new JobsPage(page);
     await jobs.goto();
